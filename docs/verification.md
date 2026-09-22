@@ -1,0 +1,41 @@
+# Verification and limitations
+
+Initial implementation checked September 22, 2026. This page separates implementation tests from live service acceptance.
+
+## Verified locally
+
+- Behavioral tests run with the real pinned Strands `BidiAgent`, its tool executor, public hooks, and local WebSockets. AWS responses and voice generation are simulated in these acceptance fixtures.
+- Both 24 kHz OpenAI and 16/24 kHz Gemini profiles negotiate audio, execute order lookup, persist mapped results before returning them to the model, emit tool/transcript traces, and finish or escalate with saved notes.
+- The **actual official OpenAI Python SDK** connects to a local protocol server; session configuration, audio events, streamed function calls, and connection cleanup are exercised without an external API key.
+- AgentCore's actual ASGI application is exercised locally for health, runtime-session context, and first-message handling. The bearer-to-runtime bridge is tested over WebSockets for authentication, A2A headers, correlation, and forwarding.
+- Contact ownership and initial/current leg separation, concurrent contact isolation, allowlists, write/readback failures, cancelled waiters, queue saturation, and bounded shutdown are covered.
+- Audio readiness, tool-earcon cancellation, interruption markers, final trace ordering, frame fragmentation, DTMF completion, and Gemini compatibility behavior are covered.
+- Wheel/source distribution build and a clean OpenAI + AgentCore wheel installation pass. The OpenAI installation does not require Gemini.
+- Both provider artifacts can be built for Linux ARM64/Python 3.12. AWS CloudFormation `ValidateTemplate` accepts the example runtime template. This is syntax/template validation, not a new deployment.
+
+CI repeats lint, format, tests, and package build on Python 3.12 and 3.13. Check the latest Actions run before relying on a particular commit.
+
+## Not yet established for this extracted library
+
+- A live OpenAI provider call: no OpenAI API key was available during initial implementation.
+- A new hosted AgentCore + Connect deployment of this exact library. The existing Gemini prototype informed the extraction, but its earlier live results do not validate all new library changes.
+- Complete transcript/tool-trace indexing and recording playback in a new user's Connect Contact details. These require account configuration and a real acceptance call.
+- Production load, long-duration reconnect behavior across all providers, cross-region operation, or formal security review.
+- A PyPI release. Install from GitHub for now.
+
+## Known boundaries
+
+Voice handoff only; not a generic text-chat/delegate A2A server. Audio remains mono PCM16 at the negotiated rate. Native voice still has Connect's immediate-handoff and Lex/Sonic setup requirements. Completion/escalation ends the collaboration; human routing is configured in your flow.
+
+There is no acknowledged playback offset from Connect, so interruption markers distinguish generated speech from potentially heard speech without inventing exact truncation. Reconnect/history replay is delegated to Strands and needs provider-specific live testing. Prior history support seeds text turns; it does not reconstruct arbitrary binary/tool history from A2A data parts.
+
+The contact name/description API is preview. The default examples leave it disabled. The package does not mutate arbitrary CTR fields, provision a full Connect instance/flow/ingress, or consume CTR exports. The scoped update APIs, trace events, and deployment instructions are the initial implementation.
+
+## Next contributions
+
+1. Real OpenAI and fresh Gemini acceptance with a dedicated test flow and private evidence.
+2. Reusable infrastructure for authenticated WSS ingress and Connect collaborator/flow registration.
+3. Upstream public transport injection for Strands OpenAI and removal of compatibility overrides when fixed upstream.
+4. More native voice providers and provider-specific interruption/reconnect tests.
+5. Optional CTR streaming integration with idempotent downstream handling.
+6. Trusted PyPI publishing and versioned releases after maintainer/release setup.

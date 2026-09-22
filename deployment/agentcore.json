@@ -1,0 +1,215 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Strands Connect example AgentCore runtime; existing Connect instance and ingress supplied separately",
+  "Parameters": {
+    "ModelSecretArn": {
+      "Type": "String"
+    },
+    "ConnectInstanceArn": {
+      "Type": "String"
+    },
+    "AssetsBucket": {
+      "Type": "String"
+    },
+    "CodeKey": {
+      "Type": "String"
+    },
+    "SecretKeyArn": {
+      "Type": "String",
+      "Default": "",
+      "Description": "Optional customer-managed KMS key for the model secret"
+    },
+    "RuntimeName": {
+      "Type": "String",
+      "Default": "strands_connect",
+      "AllowedPattern": "[a-zA-Z][a-zA-Z0-9_]{0,47}"
+    },
+    "VoiceModel": {
+      "Type": "String",
+      "Description": "Model matching the provider in the uploaded code artifact"
+    }
+  },
+  "Conditions": {
+    "HasSecretKey": {
+      "Fn::Not": [
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "SecretKeyArn"
+            },
+            ""
+          ]
+        }
+      ]
+    }
+  },
+  "Resources": {
+    "ExecutionRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "bedrock-agentcore.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole",
+              "Condition": {
+                "StringEquals": {
+                  "aws:SourceAccount": {
+                    "Ref": "AWS::AccountId"
+                  }
+                },
+                "ArnLike": {
+                  "aws:SourceArn": {
+                    "Fn::Sub": "arn:${AWS::Partition}:bedrock-agentcore:${AWS::Region}:${AWS::AccountId}:*"
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "StrandsConnectContactScope",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "connect:DescribeContact",
+                    "connect:GetContactAttributes",
+                    "connect:UpdateContactAttributes"
+                  ],
+                  "Resource": {
+                    "Fn::Sub": "${ConnectInstanceArn}/contact/*"
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": "secretsmanager:GetSecretValue",
+                  "Resource": {
+                    "Ref": "ModelSecretArn"
+                  }
+                },
+                {
+                  "Fn::If": [
+                    "HasSecretKey",
+                    {
+                      "Effect": "Allow",
+                      "Action": "kms:Decrypt",
+                      "Resource": {
+                        "Ref": "SecretKeyArn"
+                      }
+                    },
+                    {
+                      "Ref": "AWS::NoValue"
+                    }
+                  ]
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": "s3:GetObject",
+                  "Resource": {
+                    "Fn::Sub": "arn:${AWS::Partition}:s3:::${AssetsBucket}/${CodeKey}"
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "logs:CreateLogGroup",
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents",
+                    "logs:DescribeLogStreams"
+                  ],
+                  "Resource": {
+                    "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/bedrock-agentcore/*"
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": "logs:DescribeLogGroups",
+                  "Resource": "*"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "Runtime": {
+      "Type": "AWS::BedrockAgentCore::Runtime",
+      "Properties": {
+        "AgentRuntimeName": {
+          "Ref": "RuntimeName"
+        },
+        "Description": "Strands native voice adapter for Amazon Connect",
+        "RoleArn": {
+          "Fn::GetAtt": [
+            "ExecutionRole",
+            "Arn"
+          ]
+        },
+        "AgentRuntimeArtifact": {
+          "CodeConfiguration": {
+            "Code": {
+              "S3": {
+                "Bucket": {
+                  "Ref": "AssetsBucket"
+                },
+                "Prefix": {
+                  "Ref": "CodeKey"
+                }
+              }
+            },
+            "Runtime": "PYTHON_3_12",
+            "EntryPoint": [
+              "entrypoint.py"
+            ]
+          }
+        },
+        "ProtocolConfiguration": "HTTP",
+        "NetworkConfiguration": {
+          "NetworkMode": "PUBLIC"
+        },
+        "LifecycleConfiguration": {
+          "IdleRuntimeSessionTimeout": 60,
+          "MaxLifetime": 600
+        },
+        "EnvironmentVariables": {
+          "CONNECT_INSTANCE_ARN": {
+            "Ref": "ConnectInstanceArn"
+          },
+          "MODEL_SECRET_ARN": {
+            "Ref": "ModelSecretArn"
+          },
+          "VOICE_MODEL": {
+            "Ref": "VoiceModel"
+          },
+          "TOOL_CUE_ENABLED": "true"
+        }
+      }
+    }
+  },
+  "Outputs": {
+    "RuntimeArn": {
+      "Value": {
+        "Fn::GetAtt": [
+          "Runtime",
+          "AgentRuntimeArn"
+        ]
+      }
+    },
+    "RoleArn": {
+      "Value": {
+        "Fn::GetAtt": [
+          "ExecutionRole",
+          "Arn"
+        ]
+      }
+    }
+  }
+}
