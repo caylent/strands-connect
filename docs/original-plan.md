@@ -37,4 +37,4 @@ AgentCore logs or an application audit file do not establish that Connect Contac
 
 ## Implementation status
 
-See [verification](verification.md). The initial reusable library and two examples implement the core transport/hooks/tools. Offline contract checks are separate from live provider and Connect acceptance. The original prototype supplied the starting transport; its deployment results are not asserted as verification of every change in this library.
+See [verification](verification.md). The initial reusable library and three provider examples implement the core transport/hooks/tools. Offline contract checks are separate from live provider and Connect acceptance. The original prototype supplied the starting transport; its deployment results are not asserted as verification of every change in this library.

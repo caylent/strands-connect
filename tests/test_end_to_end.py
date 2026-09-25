@@ -46,12 +46,12 @@ def init_frame():
     )
 
 
-@pytest.mark.parametrize("provider,rate", [("openai", 24000), ("gemini", 16000)])
+@pytest.mark.parametrize("provider,rate", [("openai", 24000), ("gemini", 16000), ("sonic", 16000)])
 @pytest.mark.parametrize(
     "finish_type,closing,disposition",
     [("COMPLETE", "goodbye", "completed"), ("ESCALATE", "human", "escalated")],
 )
-async def test_both_provider_profiles_over_websocket(provider, rate, finish_type, closing, disposition):
+async def test_provider_profiles_over_websocket(provider, rate, finish_type, closing, disposition):
     client = ContactClient()
     model = ScriptedModel(client, rate=rate)
     sessions = []

@@ -4,7 +4,7 @@
 |---|---|---|---|
 | OpenAI Realtime | `OpenAIRealtimeSDKModel` | 24 kHz input/output | Runnable example; real SDK exercised against a local protocol server |
 | Google Gemini Live | `GeminiLiveModel` | 16 kHz input / 24 kHz output | Runnable example; compatibility fixes extracted from a live-tested prototype |
-| Amazon Nova Sonic | Strands `BedrockNovaSonicModel` | 16 kHz input / 24 kHz output | Optional factory available; no dedicated deployment example or new live acceptance |
+| Amazon Nova 2 Sonic | Strands `BedrockNovaSonicModel` | 16 kHz input / 24 kHz output | [Runnable AgentCore example](../examples/connect_nova_sonic_2/README.md); IAM authentication; offline coverage, live acceptance pending |
 | Other native voice providers | Inject a `BidiModel` with `get_audio_config()` | PCM16 mono at 8/16/24 kHz | Supported extension seam, not a claim of provider compatibility |
 
 Ordinary text-only model providers do not automatically become native voice providers. A text-model + speech-recognition + speech-synthesis pipeline would need another `BidiModel` implementation, including interruption behavior. Azure-hosted OpenAI, speech vendors, and SIP-native integrations need their own authentication/audio/lifecycle contract tests before being listed as supported.
@@ -23,13 +23,13 @@ The example retains the prototype's `gemini-3.1-flash-live-preview` default; ove
 
 The earlier prototype encountered provider closure errors with a Gemini 2.5 native-audio model during tool calls. That is historical evidence, not a claim about all current 2.5 sessions. Test the exact model and account before changing defaults.
 
-## Nova Sonic and custom providers
+## Nova 2 Sonic and custom providers
 
 ```python
 model_factory = lambda: make_model("sonic", "amazon.nova-2-sonic-v1:0", region="us-east-1")
 ```
 
-Install the `sonic` extra and grant the relevant Bedrock bidirectional model permission. No external API key is needed. To add another provider, implement the public Strands `BidiModel` contract and audio configuration; inject a fresh instance per contact. Keep contact persistence and business-result mappings unchanged.
+Install the `sonic` and `agentcore` extras. The dedicated example uses `amazon.nova-2-sonic-v1:0`. Set `VoiceProvider=sonic` in the deployment template to grant the relevant Bedrock bidirectional model permission and omit model-secret access. No external API key is needed. Python 3.14 is the default for development and AgentCore code packaging. To add another provider, implement the public Strands `BidiModel` contract and audio configuration; inject a fresh instance per contact. Keep contact persistence and business-result mappings unchanged.
 
 ## Sources
 

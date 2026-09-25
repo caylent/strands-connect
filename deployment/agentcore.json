@@ -3,7 +3,9 @@
   "Description": "Strands Connect example AgentCore runtime; existing Connect instance and ingress supplied separately",
   "Parameters": {
     "ModelSecretArn": {
-      "Type": "String"
+      "Type": "String",
+      "Default": "",
+      "Description": "Provider API-key secret; required for OpenAI/Gemini, unused for Nova Sonic"
     },
     "ConnectInstanceArn": {
       "Type": "String"
@@ -27,18 +29,50 @@
     "VoiceModel": {
       "Type": "String",
       "Description": "Model matching the provider in the uploaded code artifact"
+    },
+    "VoiceProvider": {
+      "Type": "String",
+      "Default": "openai",
+      "AllowedValues": [
+        "openai",
+        "gemini",
+        "sonic"
+      ],
+      "Description": "Must match the provider chosen when packaging the uploaded code artifact"
     }
   },
   "Conditions": {
     "HasSecretKey": {
+      "Fn::And": [
+        {
+          "Condition": "UsesModelSecret"
+        },
+        {
+          "Fn::Not": [
+            {
+              "Fn::Equals": [
+                {
+                  "Ref": "SecretKeyArn"
+                },
+                ""
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "IsSonic": {
+      "Fn::Equals": [
+        {
+          "Ref": "VoiceProvider"
+        },
+        "sonic"
+      ]
+    },
+    "UsesModelSecret": {
       "Fn::Not": [
         {
-          "Fn::Equals": [
-            {
-              "Ref": "SecretKeyArn"
-            },
-            ""
-          ]
+          "Condition": "IsSonic"
         }
       ]
     }
@@ -89,11 +123,34 @@
                   }
                 },
                 {
-                  "Effect": "Allow",
-                  "Action": "secretsmanager:GetSecretValue",
-                  "Resource": {
-                    "Ref": "ModelSecretArn"
-                  }
+                  "Fn::If": [
+                    "UsesModelSecret",
+                    {
+                      "Effect": "Allow",
+                      "Action": "secretsmanager:GetSecretValue",
+                      "Resource": {
+                        "Ref": "ModelSecretArn"
+                      }
+                    },
+                    {
+                      "Ref": "AWS::NoValue"
+                    }
+                  ]
+                },
+                {
+                  "Fn::If": [
+                    "IsSonic",
+                    {
+                      "Effect": "Allow",
+                      "Action": "bedrock:InvokeModelWithBidirectionalStream",
+                      "Resource": {
+                        "Fn::Sub": "arn:${AWS::Partition}:bedrock:${AWS::Region}::foundation-model/${VoiceModel}"
+                      }
+                    },
+                    {
+                      "Ref": "AWS::NoValue"
+                    }
+                  ]
                 },
                 {
                   "Fn::If": [
@@ -165,7 +222,7 @@
                 }
               }
             },
-            "Runtime": "PYTHON_3_12",
+            "Runtime": "PYTHON_3_14",
             "EntryPoint": [
               "entrypoint.py"
             ]
@@ -184,7 +241,15 @@
             "Ref": "ConnectInstanceArn"
           },
           "MODEL_SECRET_ARN": {
-            "Ref": "ModelSecretArn"
+            "Fn::If": [
+              "UsesModelSecret",
+              {
+                "Ref": "ModelSecretArn"
+              },
+              {
+                "Ref": "AWS::NoValue"
+              }
+            ]
           },
           "VOICE_MODEL": {
             "Ref": "VoiceModel"
@@ -210,6 +275,39 @@
           "Arn"
         ]
       }
+    }
+  },
+  "Rules": {
+    "ExternalProviderRequiresSecret": {
+      "RuleCondition": {
+        "Fn::Not": [
+          {
+            "Fn::Equals": [
+              {
+                "Ref": "VoiceProvider"
+              },
+              "sonic"
+            ]
+          }
+        ]
+      },
+      "Assertions": [
+        {
+          "Assert": {
+            "Fn::Not": [
+              {
+                "Fn::Equals": [
+                  {
+                    "Ref": "ModelSecretArn"
+                  },
+                  ""
+                ]
+              }
+            ]
+          },
+          "AssertDescription": "OpenAI and Gemini require ModelSecretArn; Sonic uses the runtime IAM role."
+        }
+      ]
     }
   }
 }

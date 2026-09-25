@@ -17,15 +17,17 @@ AWS_CONFIG = Config(connect_timeout=3, read_timeout=4, retries={"max_attempts": 
 def create_app(provider, default_model):
     async def session_factory(socket, *, runtime_session_id):
         region = os.getenv("AWS_REGION", "us-east-1")
-        api_key = os.getenv("OPENAI_API_KEY" if provider == "openai" else "GEMINI_API_KEY")
-        if os.getenv("MODEL_SECRET_ARN"):
-            sm = boto3.client("secretsmanager", region_name=region, config=AWS_CONFIG)
-            api_key = (
-                await asyncio.to_thread(
-                    sm.get_secret_value,
-                    SecretId=os.environ["MODEL_SECRET_ARN"],
-                )
-            )["SecretString"]
+        api_key = None
+        if provider != "sonic":
+            api_key = os.getenv("OPENAI_API_KEY" if provider == "openai" else "GEMINI_API_KEY")
+            if os.getenv("MODEL_SECRET_ARN"):
+                sm = boto3.client("secretsmanager", region_name=region, config=AWS_CONFIG)
+                api_key = (
+                    await asyncio.to_thread(
+                        sm.get_secret_value,
+                        SecretId=os.environ["MODEL_SECRET_ARN"],
+                    )
+                )["SecretString"]
         connect = boto3.client("connect", region_name=region, config=AWS_CONFIG)
         return configure_session(
             socket,

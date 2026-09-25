@@ -1,4 +1,4 @@
-"""Synthetic business logic shared by both examples; no Connect API calls here."""
+"""Synthetic business logic shared by every provider example; no Connect API calls here."""
 
 from strands import tool
 

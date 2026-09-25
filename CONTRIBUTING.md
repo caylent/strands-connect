@@ -4,7 +4,7 @@ This is intended as a reusable community extension. Keep application-specific bu
 
 ## Develop
 
-Install Python 3.12 or 3.13 and uv. Clone the repository, then run:
+Install Python 3.14 and uv. Python 3.12 and 3.13 remain in the compatibility test matrix. Clone the repository, then run:
 
 ```sh
 uv sync --all-extras --group dev

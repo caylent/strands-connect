@@ -2,7 +2,7 @@
 
 A reusable Amazon Connect native-voice extension for **Strands + Amazon Bedrock AgentCore**. Bring your own voice model, system prompt, and business tools. The adapter handles Connect A2A audio, contact-scoped tools, automatic contact attribute persistence, tool sounds, transcripts, and handback.
 
-Early implementation, **v0.1.0**. Independent community extension; not an AWS, Strands, OpenAI, or Google product. The realtime Strands API is experimental, so tested versions are pinned. See [verification and limitations](docs/verification.md).
+Early implementation, **v0.2.0**. Independent community extension; not an AWS, Strands, OpenAI, or Google product. The realtime Strands API is experimental, so tested versions are pinned. See [verification and limitations](docs/verification.md).
 
 ```mermaid
 flowchart LR
@@ -20,7 +20,7 @@ flowchart LR
 
 ## Install
 
-Python 3.12+. Until a PyPI release exists, install directly from this repository:
+Python **3.14** is the development and AgentCore deployment default; Python 3.12 and 3.13 remain supported. Until a PyPI release exists, install directly from this repository:
 
 ```sh
 pip install 'strands-connect[openai,agentcore] @ git+https://github.com/caylent/strands-connect.git@main'
@@ -29,12 +29,13 @@ pip install 'strands-connect[openai,agentcore] @ git+https://github.com/caylent/
 
 No microphone or PyAudio dependency is required on the server. Provider imports are optional and lazy.
 
-## Two runnable examples
+## Three runnable examples
 
 - [Connect + OpenAI Realtime SDK](examples/connect_openai_realtime/README.md)
 - [Connect + Gemini Live](examples/connect_gemini/README.md)
+- [Connect + Amazon Nova 2 Sonic](examples/connect_nova_sonic_2/README.md)
 
-Both run the same synthetic order lookup and contact lifecycle on AgentCore. They differ only in provider configuration. See [AgentCore and Connect setup](docs/deployment.md) for the ingress bridge, IAM, registration, recording, and validation steps. There are no account IDs, secrets, or pre-existing demo resources required by the source code.
+All three run the same synthetic order lookup and contact lifecycle on AgentCore. They share the agent and contact logic; Nova 2 Sonic authenticates through AWS IAM, while OpenAI and Gemini use provider API keys. See [AgentCore and Connect setup](docs/deployment.md) for the ingress bridge, IAM, registration, recording, and validation steps. There are no account IDs, secrets, or pre-existing demo resources required by the source code.
 
 ## Use with your own agent
 
@@ -98,7 +99,7 @@ This follows Strands' [extension template](https://github.com/strands-agents/ext
 
 ## Providers and development
 
-See the [provider guide](docs/providers.md) for OpenAI SDK behavior, Gemini compatibility fixes, Nova Sonic, and custom providers. See [CONTRIBUTING](CONTRIBUTING.md) for local checks and extension work.
+See the [provider guide](docs/providers.md) for OpenAI SDK behavior, Gemini compatibility fixes, Nova 2 Sonic, and custom providers. See [CONTRIBUTING](CONTRIBUTING.md) for local checks and extension work.
 
 ```sh
 uv sync --all-extras --group dev

@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--provider", choices=["openai", "gemini"], required=True)
+    parser.add_argument("--provider", choices=["openai", "gemini", "sonic"], required=True)
     args = parser.parse_args()
     build = ROOT / "build" / args.provider
     build.mkdir(parents=True, exist_ok=True)
@@ -46,7 +46,7 @@ def main():
             "--python-platform",
             "aarch64-manylinux_2_28",
             "--python-version",
-            "3.12",
+            "3.14",
             "--only-binary=:all:",
             "--target",
             str(package),
@@ -60,7 +60,11 @@ def main():
         (ROOT / "examples", package / "examples"),
     ]:
         shutil.copytree(source, target, ignore=shutil.ignore_patterns("__pycache__", ".env", ".env.*"))
-    example = "connect_openai_realtime" if args.provider == "openai" else "connect_gemini"
+    example = {
+        "openai": "connect_openai_realtime",
+        "gemini": "connect_gemini",
+        "sonic": "connect_nova_sonic_2",
+    }[args.provider]
     (package / "entrypoint.py").write_text(
         f'from examples.{example}.app import app\napp.run(log_level="info")\n'
     )

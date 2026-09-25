@@ -1,24 +1,25 @@
 # Verification and limitations
 
-Initial implementation checked September 22, 2026. This page separates implementation tests from live service acceptance.
+Initial implementation checked September 22, 2026; Python 3.14 / Nova 2 Sonic update checked September 25, 2026. This page separates implementation tests from live service acceptance.
 
 ## Verified locally
 
 - Behavioral tests run with the real pinned Strands `BidiAgent`, its tool executor, public hooks, and local WebSockets. AWS responses and voice generation are simulated in these acceptance fixtures.
-- Both 24 kHz OpenAI and 16/24 kHz Gemini profiles negotiate audio, execute order lookup, persist mapped results before returning them to the model, emit tool/transcript traces, and finish or escalate with saved notes.
+- The 24 kHz OpenAI and 16/24 kHz Gemini/Nova 2 Sonic profiles negotiate audio, execute order lookup, persist mapped results before returning them to the model, emit tool/transcript traces, and finish or escalate with saved notes.
 - The **actual official OpenAI Python SDK** connects to a local protocol server; session configuration, audio events, streamed function calls, and connection cleanup are exercised without an external API key.
 - AgentCore's actual ASGI application is exercised locally for health, runtime-session context, and first-message handling. The bearer-to-runtime bridge is tested over WebSockets for authentication, A2A headers, correlation, and forwarding.
 - Contact ownership and initial/current leg separation, concurrent contact isolation, allowlists, write/readback failures, cancelled waiters, queue saturation, and bounded shutdown are covered.
 - Audio readiness, tool-earcon cancellation, interruption markers, final trace ordering, frame fragmentation, DTMF completion, and Gemini compatibility behavior are covered.
-- Wheel/source distribution build and a clean OpenAI + AgentCore wheel installation pass. The OpenAI installation does not require Gemini.
-- Both provider artifacts can be built for Linux ARM64/Python 3.12. AWS CloudFormation `ValidateTemplate` accepts the example runtime template. This is syntax/template validation, not a new deployment.
+- All 32 behavioral tests pass on Python 3.14.3. Wheel/source distribution builds pass, as does a clean Sonic + AgentCore wheel installation without OpenAI or Gemini packages. The initial implementation also checked an isolated OpenAI + AgentCore install.
+- All three provider artifacts build for Linux ARM64/Python 3.14, with compatible native wheels and the corresponding example entrypoint. AWS CloudFormation `ValidateTemplate` accepts the example runtime template. These are packaging/template checks, not a new deployment.
 
-CI repeats lint, format, tests, and package build on Python 3.12 and 3.13. Check the latest Actions run before relying on a particular commit.
+CI repeats lint, format, tests, and package build on Python 3.14 (default), 3.13, and 3.12. Check the latest Actions run before relying on a particular commit.
 
 ## Not yet established for this extracted library
 
 - A live OpenAI provider call: no OpenAI API key was available during initial implementation.
-- A new hosted AgentCore + Connect deployment of this exact library. The existing Gemini prototype informed the extraction, but its earlier live results do not validate all new library changes.
+- A live Nova 2 Sonic call for this new example; its AWS authentication/configuration and transport are covered offline.
+- A new hosted AgentCore + Connect deployment of this exact library, including the Python 3.14 runtime. The existing Gemini prototype informed the extraction, but its earlier live results do not validate all new library changes.
 - Complete transcript/tool-trace indexing and recording playback in a new user's Connect Contact details. These require account configuration and a real acceptance call.
 - Production load, long-duration reconnect behavior across all providers, cross-region operation, or formal security review.
 - A PyPI release. Install from GitHub for now.
