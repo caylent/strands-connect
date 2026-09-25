@@ -39,6 +39,13 @@
         "sonic"
       ],
       "Description": "Must match the provider chosen when packaging the uploaded code artifact"
+    },
+    "DemoToolDelaySeconds": {
+      "Type": "Number",
+      "Default": 8,
+      "MinValue": 0,
+      "MaxValue": 30,
+      "Description": "Synthetic order lookup delay in seconds; 0 disables, 15 demonstrates looping audio"
     }
   },
   "Conditions": {
@@ -254,7 +261,10 @@
           "VOICE_MODEL": {
             "Ref": "VoiceModel"
           },
-          "TOOL_CUE_ENABLED": "true"
+          "TOOL_CUE_ENABLED": "true",
+          "DEMO_TOOL_DELAY_SECONDS": {
+            "Fn::Sub": "${DemoToolDelaySeconds}"
+          }
         }
       }
     }

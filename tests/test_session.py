@@ -106,7 +106,7 @@ async def test_pulse_stops_promptly_when_last_tool_finishes():
     assert len(s.socket.frames) == count and s.cue_task is None
 
 
-async def test_model_speech_cancels_pulse_before_sending_voice():
+async def test_model_speech_pauses_pulse_through_queued_playback_then_resumes():
     s = session()
     s.ready.set()
     s.initialized.set()
@@ -119,7 +119,8 @@ async def test_model_speech_cancels_pulse_before_sending_voice():
         async def receive(self):
             yield {
                 "type": "bidi_audio_stream",
-                "audio": base64.b64encode(b"\x01\x00" * 480).decode(),
+                # A provider burst contains 300 ms of speech, not just 20 ms.
+                "audio": base64.b64encode(b"\x01\x00" * 7200).decode(),
                 "sample_rate": 24000,
                 "format": "pcm",
                 "channels": 1,
@@ -127,9 +128,19 @@ async def test_model_speech_cancels_pulse_before_sending_voice():
 
     s.agent = Agent()
     await s.receive_agent()
-    assert task.done() and s.cue_task is None
     metadata = s.socket.frames[-1]["result"]["artifactUpdate"]["artifact"]["metadata"]
     assert metadata["strands.connect/audioSource"] == "model"
+    count = len(s.socket.frames)
+    try:
+        await asyncio.sleep(0.35)
+        assert len(s.socket.frames) == count
+        s.socket.sent.clear()
+        await asyncio.wait_for(s.socket.sent.wait(), 0.5)
+        metadata = s.socket.frames[-1]["result"]["artifactUpdate"]["artifact"]["metadata"]
+        assert metadata["strands.connect/audioSource"] == "tool_cue"
+        assert not task.done()
+    finally:
+        await s.stop_cue()
 
 
 async def test_pulse_repeats_without_the_old_beep_pause(monkeypatch):

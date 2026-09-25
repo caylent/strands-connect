@@ -121,7 +121,7 @@ class ConnectSession:
         self.finish = None
         self.failed = False
         self.cue_task = None
-        self.last_model_audio = 0
+        self.model_audio_until = 0
         self.audio_generation = 0
         self.input_bytes = self.output_bytes = 0
         self.upstream_trace = socket.headers.get("traceparent", "")
@@ -209,6 +209,13 @@ class ConnectSession:
         async with self.audio_lock:
             if generation is not None and generation != self.audio_generation:
                 return
+            now = time.monotonic()
+            if source == "tool_cue" and now < self.model_audio_until + 0.15:
+                return
+            if source == "model":
+                # Providers may deliver PCM faster than playback. Estimate the queued
+                # speech tail so the cue resumes after speech, not between bursts.
+                self.model_audio_until = max(now, self.model_audio_until) + len(pcm) / (2 * self.output_rate)
             for offset in range(0, len(pcm), 12000):
                 part = pcm[offset : offset + 12000]
                 await self.artifact(
@@ -232,20 +239,31 @@ class ConnectSession:
             await self.ready.wait()
             # Delay only the cue, never the tool. Quick calls should stay silent.
             await asyncio.sleep(0.7)
-            while time.monotonic() - self.last_model_audio < 0.15:
-                await asyncio.sleep(0.03)
             if not self.pending_tools or generation != self.audio_generation:
                 return
             loop = await asyncio.to_thread(soft_pulse, self.output_rate)
             played = 0
+            next_frame = time.monotonic()
             while self.pending_tools and generation == self.audio_generation:
                 event("tool_cue", context=self.context)
                 for pcm in chunks(loop, self.output_rate):
+                    while time.monotonic() < self.model_audio_until + 0.15:
+                        if not self.pending_tools or generation != self.audio_generation:
+                            return
+                        played = 0  # Fade back in after a spoken acknowledgement.
+                        await asyncio.sleep(0.02)
+                        next_frame = time.monotonic()
                     if not self.pending_tools or generation != self.audio_generation:
                         return
                     await self.output_audio(fade_in(pcm, self.output_rate, played), "tool_cue", generation)
                     played += len(pcm) // 2
-                    await asyncio.sleep(0.02)
+                    # Include send/scheduling time in the frame budget. Sleeping a
+                    # full frame after every send makes long loops gradually lag.
+                    next_frame += len(pcm) / (2 * self.output_rate)
+                    now = time.monotonic()
+                    if next_frame < now - 0.1:
+                        next_frame = now  # Do not burst a backlog after a slow send.
+                    await asyncio.sleep(max(0, next_frame - now))
         except asyncio.CancelledError:
             raise
         finally:
@@ -533,6 +551,7 @@ class ConnectSession:
                 continue
             if kind == "INTERRUPTION":
                 self.audio_generation += 1
+                self.model_audio_until = 0
                 await self.stop_cue()
                 continue
             for part in incoming.get("parts", []):
@@ -563,8 +582,6 @@ class ConnectSession:
             if kind == "bidi_response_start":
                 self.ensure_turn()
             elif kind == "bidi_audio_stream":
-                await self.stop_cue()
-                self.last_model_audio = time.monotonic()
                 if (
                     item["sample_rate"] != self.output_rate
                     or item["format"] != "pcm"
@@ -581,6 +598,7 @@ class ConnectSession:
                     turn[role] = (turn[role] + item["delta"])[:20000]
             elif kind == "bidi_interruption":
                 self.audio_generation += 1
+                self.model_audio_until = 0
                 await self.stop_cue()
                 await self.send(
                     {

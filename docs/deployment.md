@@ -41,6 +41,8 @@ The template creates the Python 3.14 runtime and execution role. It grants conta
 
 To enable the optional name/description tool, set `allow_contact_details=True` in your application policy and add `connect:UpdateContact` on the configured instance's contact resources. The Sonic template branch already includes the scoped Bedrock invocation permission.
 
+The template defaults `DemoToolDelaySeconds` to **8**. Override it with `DemoToolDelaySeconds=15` to demonstrate multiple pulse loops, or `DemoToolDelaySeconds=0` for immediate synthetic results (range 0–30). It sets the same `DEMO_TOOL_DELAY_SECONDS` environment variable used locally; changing your local environment does not update a deployed runtime.
+
 ## 3. Provide authenticated Connect ingress
 
 Connect external applications use a bearer-authenticated WebSocket; AgentCore uses IAM/SigV4 (or its separately configured OAuth mode). The included thin bridge translates that authentication boundary and forwards A2A frames. It does not run the agent.
@@ -78,7 +80,7 @@ For recordings, configure Connect recording storage and enable recording for the
 
 ## 6. Acceptance call
 
-Ask for order **1042**, interrupt an answer, ask for order status again, then say goodbye. Verify returned audio, both transcripts, tool request/result traces, `OrderStatus=Shipped`, a completed disposition, subsequent flow readback, and recording playback. Repeat with an escalation request and a brief note, then run two concurrent contacts to check isolation. Repeat with each provider using the same mapping/tools.
+Use the [demo walkthrough](demo.md) to hear the soft pulse during the intentional lookup delay and verify overlapping input/output. Ask for order **1042**, interrupt an answer, ask for order status again, then say goodbye. Verify returned audio, both transcripts, tool request/result traces, `OrderStatus=Shipped`, a completed disposition, subsequent flow readback, and recording playback. Repeat with an escalation request and a brief note, then run two concurrent contacts to check isolation. Repeat with each provider using the same mapping/tools.
 
 Exercise provider failure and denied attribute writes; they must not produce an unverified success. Keep test contact IDs and results in your own private evidence store, not this public repository.
 

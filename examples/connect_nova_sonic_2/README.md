@@ -42,3 +42,5 @@ The bridge's bearer secret authenticates Connect ingress and is still required; 
 
 - [Nova 2 Sonic model](https://docs.aws.amazon.com/bedrock/latest/userguide/model-card-amazon-nova-2-sonic.html)
 - [Speech-to-speech setup](https://docs.aws.amazon.com/nova/latest/nova2-userguide/sonic-getting-started.html)
+
+The order lookup intentionally waits **8 seconds** while the soft pulse plays and caller audio continues streaming. Set `DEMO_TOOL_DELAY_SECONDS=15` for a longer loop demonstration, or `0` to disable the artificial delay (allowed range: 0–30). This is a demo-only setting, not a tool argument. See the [demo walkthrough](../../docs/demo.md).

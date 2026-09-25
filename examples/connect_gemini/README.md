@@ -15,3 +15,5 @@ The app exposes `/ws` on port 8080. Set `VOICE_MODEL` to override `gemini-3.1-fl
 The synthetic retail tools, result mapping, contact attributes, lifecycle, and optional tool sounds are identical to the OpenAI example. There is no provider-specific persistence code. Set `TOOL_CUE_ENABLED=false` to disable the default soft-pulse waiting sound.
 
 For real Connect calls, follow [deployment and registration](../../docs/deployment.md). The original Gemini prototype was live-tested; this extracted package's changes still require the new acceptance call documented in [verification](../../docs/verification.md).
+
+The order lookup intentionally waits **8 seconds** while the soft pulse plays and caller audio continues streaming. Set `DEMO_TOOL_DELAY_SECONDS=15` for a longer loop demonstration, or `0` to disable the artificial delay (allowed range: 0–30). This is a demo-only setting, not a tool argument. See the [demo walkthrough](../../docs/demo.md).

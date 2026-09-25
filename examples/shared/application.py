@@ -9,12 +9,15 @@ from botocore.config import Config
 from strands_connect.agentcore import create_app as create_agentcore_app
 from strands_connect.providers import make_model
 
-from .retail import configure_session
+from .retail import configure_session, validate_tool_delay
 
 AWS_CONFIG = Config(connect_timeout=3, read_timeout=4, retries={"max_attempts": 2, "mode": "standard"})
 
 
 def create_app(provider, default_model):
+    # Fail at startup for a bad setting, before accepting a caller or opening a model.
+    demo_tool_delay = validate_tool_delay(os.getenv("DEMO_TOOL_DELAY_SECONDS", "8"))
+
     async def session_factory(socket, *, runtime_session_id):
         region = os.getenv("AWS_REGION", "us-east-1")
         api_key = None
@@ -42,6 +45,7 @@ def create_app(provider, default_model):
                 region=region,
             ),
             cue_enabled=os.getenv("TOOL_CUE_ENABLED", "true").lower() == "true",
+            demo_tool_delay_seconds=demo_tool_delay,
         )
 
     return create_agentcore_app(session_factory, service_name="strands-connect-" + provider)
