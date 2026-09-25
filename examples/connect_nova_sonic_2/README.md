@@ -14,7 +14,7 @@ The app exposes `/ws` on port 8080 and uses `amazon.nova-2-sonic-v1:0` through S
 
 **Authentication is AWS IAM.** The Strands provider uses boto3's credential chain locally and the execution role on AgentCore. No OpenAI/Gemini API key or `MODEL_SECRET_ARN` is needed; this example ignores external-provider secret configuration. The role needs `bedrock:InvokeModelWithBidirectionalStream` on the Nova 2 Sonic model in the selected supported AWS region, plus the same scoped Connect permissions as the other examples.
 
-The order lookup, deterministic contact persistence, transcript/tool tracing, completion/escalation, and optional tool sounds are shared with OpenAI and Gemini. Set `TOOL_CUE_ENABLED=false` to disable the earcon. Connect's Lex/Sonic prerequisite remains a separate setup step; the external Nova 2 Sonic model generates the audio returned by this example.
+The order lookup, deterministic contact persistence, transcript/tool tracing, completion/escalation, and optional tool sounds are shared with OpenAI and Gemini. Set `TOOL_CUE_ENABLED=false` to disable the default soft-pulse waiting sound. Connect's Lex/Sonic prerequisite remains a separate setup step; the external Nova 2 Sonic model generates the audio returned by this example.
 
 ## Package and deploy
 

@@ -14,9 +14,11 @@ class Socket:
 
     def __init__(self):
         self.frames = []
+        self.sent = asyncio.Event()
 
     async def send(self, payload):
         self.frames.append(json.loads(payload))
+        self.sent.set()
 
 
 def session():
@@ -56,7 +58,7 @@ async def test_interruption_cancels_tone_and_marks_partial_playback():
         "initiated_task": "old",
     }
     s.cue_task = asyncio.create_task(s.cue_loop())
-    await asyncio.sleep(0.055)
+    await asyncio.wait_for(s.socket.sent.wait(), 3)
     assert len(s.socket.frames) > 0
     s.audio_generation += 1
     await s.stop_cue()
@@ -72,6 +74,79 @@ async def test_interruption_cancels_tone_and_marks_partial_playback():
     trace = artifacts[-1]["artifact"]["parts"][0]["data"]["tracingSpan"]["otlp"]
     spans = trace["resourceSpans"][0]["scopeSpans"][0]["spans"]
     assert any(e["name"] == "strands.connect.audio.interrupted" for e in spans[0]["events"])
+
+
+async def test_fast_tool_call_stays_silent(monkeypatch):
+    s = session()
+    s.ready.set()
+    s.pending_tools["tool"] = {}
+
+    def unexpected_render(rate):
+        raise AssertionError("Quick tools should not render waiting audio")
+
+    monkeypatch.setattr("strands_connect.session.soft_pulse", unexpected_render)
+    s.cue_task = asyncio.create_task(s.cue_loop())
+    task = s.cue_task
+    await asyncio.sleep(0.02)
+    s.pending_tools.clear()
+    await asyncio.wait_for(task, 1)
+    assert not s.socket.frames and s.cue_task is None
+
+
+async def test_pulse_stops_promptly_when_last_tool_finishes():
+    s = session()
+    s.ready.set()
+    s.pending_tools["tool"] = {}
+    s.cue_task = asyncio.create_task(s.cue_loop())
+    task = s.cue_task
+    await asyncio.wait_for(s.socket.sent.wait(), 3)
+    count = len(s.socket.frames)
+    s.pending_tools.clear()
+    await asyncio.wait_for(task, 0.2)
+    assert len(s.socket.frames) == count and s.cue_task is None
+
+
+async def test_model_speech_cancels_pulse_before_sending_voice():
+    s = session()
+    s.ready.set()
+    s.initialized.set()
+    s.pending_tools["tool"] = {}
+    s.cue_task = asyncio.create_task(s.cue_loop())
+    task = s.cue_task
+    await asyncio.wait_for(s.socket.sent.wait(), 3)
+
+    class Agent:
+        async def receive(self):
+            yield {
+                "type": "bidi_audio_stream",
+                "audio": base64.b64encode(b"\x01\x00" * 480).decode(),
+                "sample_rate": 24000,
+                "format": "pcm",
+                "channels": 1,
+            }
+
+    s.agent = Agent()
+    await s.receive_agent()
+    assert task.done() and s.cue_task is None
+    metadata = s.socket.frames[-1]["result"]["artifactUpdate"]["artifact"]["metadata"]
+    assert metadata["strands.connect/audioSource"] == "model"
+
+
+async def test_pulse_repeats_without_the_old_beep_pause(monkeypatch):
+    s = session()
+    s.ready.set()
+    s.pending_tools["tool"] = {}
+    monkeypatch.setattr("strands_connect.session.soft_pulse", lambda rate: b"\x01\x00" * 960)
+    s.cue_task = asyncio.create_task(s.cue_loop())
+    task = s.cue_task
+    try:
+        await asyncio.wait_for(s.socket.sent.wait(), 2)
+        async with asyncio.timeout(0.4):
+            while len(s.socket.frames) < 5:
+                await asyncio.sleep(0.01)
+    finally:
+        s.pending_tools.clear()
+        await asyncio.wait_for(task, 0.2)
 
 
 async def test_final_transcript_trace_precedes_terminal_and_keeps_tool_result():

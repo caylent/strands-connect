@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 
 from strands.experimental.bidi import BidiAgent
 
-from .audio import chunks, tool_earcon
+from .audio import chunks, fade_in, soft_pulse
 from .contact import SESSION_ATTRIBUTES, ContactContext, ContactPolicy, ContactStore
 from .hooks import ConnectContactHooks
 from .tools import contact_tools
@@ -230,15 +230,22 @@ class ConnectSession:
         generation = self.audio_generation
         try:
             await self.ready.wait()
-            # Avoid inserting a tone into a model sentence. No artificial delay is added to the tool.
+            # Delay only the cue, never the tool. Quick calls should stay silent.
+            await asyncio.sleep(0.7)
             while time.monotonic() - self.last_model_audio < 0.15:
                 await asyncio.sleep(0.03)
+            if not self.pending_tools or generation != self.audio_generation:
+                return
+            loop = await asyncio.to_thread(soft_pulse, self.output_rate)
+            played = 0
             while self.pending_tools and generation == self.audio_generation:
                 event("tool_cue", context=self.context)
-                for pcm in chunks(tool_earcon(self.output_rate), self.output_rate):
-                    await self.output_audio(pcm, "tool_cue", generation)
+                for pcm in chunks(loop, self.output_rate):
+                    if not self.pending_tools or generation != self.audio_generation:
+                        return
+                    await self.output_audio(fade_in(pcm, self.output_rate, played), "tool_cue", generation)
+                    played += len(pcm) // 2
                     await asyncio.sleep(0.02)
-                await asyncio.sleep(1.6)
         except asyncio.CancelledError:
             raise
         finally:

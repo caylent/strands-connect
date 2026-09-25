@@ -1,6 +1,6 @@
 # Verification and limitations
 
-Initial implementation checked September 22, 2026; Python 3.14 / Nova 2 Sonic and bounded-write updates checked September 25, 2026. This page separates implementation tests from live service acceptance.
+Initial implementation checked September 22, 2026; Python 3.14 / Nova 2 Sonic, bounded-write, and soft-pulse updates checked September 25, 2026. This page separates implementation tests from live service acceptance.
 
 ## Verified locally
 
@@ -9,8 +9,8 @@ Initial implementation checked September 22, 2026; Python 3.14 / Nova 2 Sonic an
 - The **actual official OpenAI Python SDK** connects to a local protocol server; session configuration, audio events, streamed function calls, and connection cleanup are exercised without an external API key.
 - AgentCore's actual ASGI application is exercised locally for health, runtime-session context, and first-message handling. The bearer-to-runtime bridge is tested over WebSockets for authentication, A2A headers, correlation, and forwarding.
 - Contact ownership and initial/current leg separation, concurrent contact isolation, allowlists, write/readback failures, cancelled waiters, queue saturation, per-write deadlines (including queue time and readback), late AWS completion, and shared final contact-cleanup deadlines are covered.
-- Audio readiness, tool-earcon cancellation, interruption markers, final trace ordering, frame fragmentation, DTMF completion, and Gemini compatibility behavior are covered.
-- All 48 behavioral tests pass on Python 3.14.3, including Sonic voice selection in the actual provider configuration event. Wheel/source distribution builds pass. The 0.2.0 verification also checked a clean Sonic + AgentCore wheel installation without OpenAI or Gemini packages; the initial implementation checked an isolated OpenAI + AgentCore install.
+- Audio readiness, soft-pulse PCM levels and loop seams at all negotiated rates, quick-call silence, continuous looping, prompt cue cancellation on tool completion/speech/interruption, interruption markers, final trace ordering, frame fragmentation, DTMF completion, and Gemini compatibility behavior are covered.
+- All 55 behavioral tests pass on Python 3.14.3, including Sonic voice selection in the actual provider configuration event. Wheel/source distribution builds pass. The 0.2.0 verification also checked a clean Sonic + AgentCore wheel installation without OpenAI or Gemini packages; the initial implementation checked an isolated OpenAI + AgentCore install.
 - The 0.2.0 provider artifacts were built for all three providers targeting Linux ARM64/Python 3.14, with compatible native wheels and the corresponding example entrypoint. AWS CloudFormation `ValidateTemplate` accepts the example runtime template. These are packaging/template checks, not a new deployment.
 
 CI repeats lint, format, tests, and package build on Python 3.14 (default), 3.13, and 3.12. Check the latest Actions run before relying on a particular commit.

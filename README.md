@@ -2,7 +2,7 @@
 
 A reusable Amazon Connect native-voice extension for **Strands + Amazon Bedrock AgentCore**. Bring your own voice model, system prompt, and business tools. The adapter handles Connect A2A audio, contact-scoped tools, automatic contact attribute persistence, tool sounds, transcripts, and handback.
 
-Early implementation, **v0.2.1**. Independent community extension; not an AWS, Strands, OpenAI, or Google product. The realtime Strands API is experimental, so tested versions are pinned. See [verification and limitations](docs/verification.md).
+Early implementation, **v0.2.2**. Independent community extension; not an AWS, Strands, OpenAI, or Google product. The realtime Strands API is experimental, so tested versions are pinned. See [verification and limitations](docs/verification.md).
 
 ```mermaid
 flowchart LR
@@ -36,6 +36,8 @@ No microphone or PyAudio dependency is required on the server. Provider imports 
 - [Connect + Amazon Nova 2 Sonic](examples/connect_nova_sonic_2/README.md)
 
 All three run the same synthetic order lookup and contact lifecycle on AgentCore. They share the agent and contact logic; Nova 2 Sonic authenticates through AWS IAM, while OpenAI and Gemini use provider API keys. See [AgentCore and Connect setup](docs/deployment.md) for the ingress bridge, IAM, registration, recording, and validation steps. There are no account IDs, secrets, or pre-existing demo resources required by the source code.
+
+The default tool-wait sound is a quiet **soft pulse**: a gently breathing chord with occasional upper notes. It starts after a 700 ms delay, fades in, and loops continuously while tools remain pending. It stops when the last tool finishes, model speech resumes, or the caller interrupts. Set `TOOL_CUE_ENABLED=false` in the examples, or `cue_enabled=False` on `ConnectSession`, to disable it.
 
 ## Use with your own agent
 

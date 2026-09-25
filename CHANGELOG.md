@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.2
+
+Make the original soft-pulse ambient cue the default tool-wait sound across all providers. Wait 700 ms before starting, fade in, and loop without the old beep pause. Stop promptly when tools finish, speech resumes, or interruption occurs. Audio is synthesized locally and cached for each negotiated PCM rate.
+
 ## 0.2.1
 
 Bound per-write waits (including queue time and readback) and the final contact-state update/store drain. Timeouts remain unverified even when an accepted AWS operation completes later. Forward the Sonic voice selection and document session caps, cleanup budgets, and the absence of automatic wrap-up. Remove stale current-version references.
