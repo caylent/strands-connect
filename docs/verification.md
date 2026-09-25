@@ -17,11 +17,28 @@ Initial implementation checked September 22, 2026; Python 3.14 / Nova 2 Sonic, b
 
 CI repeats lint, format, tests, and package build on Python 3.14 (default), 3.13, and 3.12. Check the latest Actions run before relying on a particular commit.
 
-## Not yet established for this extracted library
+## Verified in a hosted Gemini integration — September 25, 2026
+
+A retail application consuming the exact 0.2.4 commit (`24d9f5e`) was deployed on
+AgentCore with Python 3.14, Gemini 3.1 Flash Live, the existing Connect A2A bridge,
+and an eight-second synthetic order delay. The application maps the library's
+canonical attributes to its existing flow attribute names and verifies both copies.
+
+Two concurrent real Connect WebRTC calls completed order lookup and escalation.
+Order 1042 returned Shipped; both contacts had complete persistence, matching
+subsequent-flow readback, distinct runtime sessions, and no failed or pending tools
+in their private audits. The order tool took 8.350 seconds including persistence.
+Both calls received audio and produced nonempty Connect IVR recordings. A two-second
+soft-pulse reference matched the order recording with normalized correlation 0.993
+after resampling 24 kHz to 8 kHz. Evidence remains in the deployment owner's private
+store. This validates that integration; it does not deploy the generic template for
+every account or establish every provider's behavior.
+
+## Not yet established
 
 - A live OpenAI provider call: no OpenAI API key was available during initial implementation.
 - A live Nova 2 Sonic call for this new example; its AWS authentication/configuration and transport are covered offline.
-- A new hosted AgentCore + Connect deployment of this exact library, including the Python 3.14 runtime. The existing Gemini prototype informed the extraction, but its earlier live results do not validate all new library changes.
+- A PSTN-originated handset acceptance call for the new release; the hosted checks used Connect WebRTC.
 - Complete transcript/tool-trace indexing and recording playback in a new user's Connect Contact details. These require account configuration and a real acceptance call.
 - Production load, long-duration reconnect behavior across all providers, cross-region operation, or formal security review.
 - A PyPI release. Install from GitHub for now.
@@ -38,7 +55,7 @@ The contact name/description API is preview. The default examples leave it disab
 
 ## Next contributions
 
-1. Real OpenAI and fresh Gemini acceptance with a dedicated test flow and private evidence.
+1. Real OpenAI/Nova 2 Sonic acceptance and additional Gemini interruption/reconnect scenarios with private evidence.
 2. Reusable infrastructure for authenticated WSS ingress and Connect collaborator/flow registration.
 3. Upstream public transport injection for Strands OpenAI and removal of compatibility overrides when fixed upstream.
 4. More native voice providers and provider-specific interruption/reconnect tests.
