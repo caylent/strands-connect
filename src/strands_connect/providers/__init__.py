@@ -21,6 +21,7 @@ def make_model(provider: str, model_id: str, *, api_key=None, region="us-east-1"
         return BedrockNovaSonicModel(
             model_id=model_id,
             region=region,
+            voice=voice or "matthew",
             audio={"input": {"sample_rate": 16000}, "output": {"sample_rate": 24000}},
         )
     raise ValueError("Unknown provider; use openai, gemini, sonic, or inject your own BidiModel")

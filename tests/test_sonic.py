@@ -1,3 +1,6 @@
+import json
+
+import pytest
 from strands.experimental.bidi.models.bedrock import BedrockNovaSonicModel
 
 from examples.shared import application
@@ -13,6 +16,14 @@ def test_nova_sonic_2_uses_native_strands_model_and_audio_profile():
         "input": {"sample_rate": 16000, "channels": 1, "format": "pcm"},
         "output": {"sample_rate": 24000, "channels": 1, "format": "pcm"},
     }
+
+
+@pytest.mark.parametrize("voice,expected", [(None, "matthew"), ("tiffany", "tiffany")])
+def test_sonic_voice_reaches_provider_session_configuration(voice, expected):
+    model = make_model("sonic", "amazon.nova-2-sonic-v1:0", voice=voice)
+    # Inspect the actual outbound provider event, not just the constructor arguments.
+    event = json.loads(model._get_prompt_start_event([]))
+    assert event["event"]["promptStart"]["audioOutputConfiguration"]["voiceId"] == expected
 
 
 async def test_sonic_example_uses_aws_without_reading_provider_secrets(monkeypatch):

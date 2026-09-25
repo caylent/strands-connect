@@ -1,10 +1,12 @@
 import asyncio
 import base64
 import json
+import threading
 
 from examples.shared.retail import order_result
-from strands_connect.contact import ContactContext
+from strands_connect.contact import ContactContext, ContactPolicy, ContactStore
 from strands_connect.session import EXT, ConnectSession
+from tests.fakes import ContactClient
 
 
 class Socket:
@@ -112,3 +114,48 @@ async def test_large_frames_reassemble_without_audio_fragmentation():
 def test_unknown_order_is_not_fabricated():
     assert order_result("1042")["status"] == "Shipped"
     assert order_result("9999")["found"] is False
+
+
+async def test_final_contact_write_and_drain_share_cleanup_deadline():
+    s = session()
+    s.contact_policy = ContactPolicy(write_timeout=10, flush_timeout=0.05)
+    started, release, completed = threading.Event(), threading.Event(), threading.Event()
+    client = ContactClient()
+    original = client.update_contact_attributes
+
+    def blocked(**kwargs):
+        started.set()
+        release.wait(2)
+        original(**kwargs)
+        completed.set()
+
+    client.update_contact_attributes = blocked
+    s.store = ContactStore(client, s.contact, s.contact_policy)
+    socket_closed = asyncio.Event()
+
+    async def disconnect():
+        return
+
+    async def wait_for_agent():
+        await asyncio.Event().wait()
+
+    async def close_socket():
+        socket_closed.set()
+
+    s.receive_connect = disconnect
+    s.receive_agent = wait_for_agent
+    s.socket.close = close_socket
+    task = asyncio.create_task(s.run())
+    try:
+        assert await asyncio.to_thread(started.wait, 1)
+        await asyncio.wait_for(task, 0.5)
+        assert s.failed and s.store.closed and s.store.worker.done()
+        assert socket_closed.is_set()
+        assert not client.writes
+        # Cleanup can stop waiting, but cannot cancel an already-running AWS call.
+        release.set()
+        assert await asyncio.to_thread(completed.wait, 1)
+        assert client.writes[0]["Attributes"]["AgentPersistenceState"] == "disconnected"
+    finally:
+        release.set()
+        await s.store.close()

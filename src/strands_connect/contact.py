@@ -1,6 +1,7 @@
 """Trusted contact scope and bounded, verified contact writes."""
 
 import asyncio
+import math
 import re
 from dataclasses import dataclass, field
 
@@ -29,10 +30,15 @@ class ContactPolicy:
     queue_size: int = 16
     max_value_bytes: int = 4096
     flush_timeout: float = 20
+    write_timeout: float = 20
 
     def __post_init__(self):
         object.__setattr__(self, "allowed_attributes", frozenset(self.allowed_attributes))
-        if self.queue_size < 1 or self.max_value_bytes < 1 or self.flush_timeout <= 0:
+        if (
+            self.queue_size < 1
+            or self.max_value_bytes < 1
+            or any(not math.isfinite(t) or t <= 0 for t in (self.flush_timeout, self.write_timeout))
+        ):
             raise ValueError("Contact policy limits must be positive")
 
 
@@ -132,7 +138,16 @@ class ContactStore:
         except asyncio.QueueFull as error:
             self.errors.append("queue_full")
             raise PersistenceError("Contact write queue is full") from error
-        return await asyncio.shield(future)
+        try:
+            # Include queue time and readback. Keep the accepted write on the single
+            # worker: cancelling a boto3 thread cannot roll it back, and starting a
+            # replacement worker could let later writes overtake it.
+            return await asyncio.wait_for(asyncio.shield(future), self.policy.write_timeout)
+        except TimeoutError as error:
+            self.errors.append("write_timeout")
+            raise PersistenceError(
+                "Contact write timed out; the accepted write may still complete"
+            ) from error
 
     async def _work(self):
         while True:
@@ -184,12 +199,17 @@ class ContactStore:
         if self.errors:
             raise PersistenceError("One or more contact writes failed")
 
-    async def close(self):
+    async def close(self, *, timeout: float | None = None):
+        """Drain within the policy limit, or a smaller remaining cleanup budget."""
+        if timeout is not None and (not math.isfinite(timeout) or timeout < 0):
+            raise ValueError("Close timeout must be finite and nonnegative")
         if self.closed:
             return
         self.closed = True
         try:
-            await asyncio.wait_for(self.queue.join(), self.policy.flush_timeout)
+            limit = self.policy.flush_timeout if timeout is None else min(timeout, self.policy.flush_timeout)
+            async with asyncio.timeout(limit):
+                await self.queue.join()
         finally:
             # This also handles a full queue when shutdown times out.
             while not self.queue.empty():

@@ -29,6 +29,8 @@ The earlier prototype encountered provider closure errors with a Gemini 2.5 nati
 model_factory = lambda: make_model("sonic", "amazon.nova-2-sonic-v1:0", region="us-east-1")
 ```
 
+Pass `voice="tiffany"` (or another voice supported by your selected model) to `make_model` to choose the Sonic output voice. If omitted, the factory uses `matthew`. The value is forwarded to Strands and included in the provider's audio-output configuration.
+
 Install the `sonic` and `agentcore` extras. The dedicated example uses `amazon.nova-2-sonic-v1:0`. Set `VoiceProvider=sonic` in the deployment template to grant the relevant Bedrock bidirectional model permission and omit model-secret access. No external API key is needed. Python 3.14 is the default for development and AgentCore code packaging. To add another provider, implement the public Strands `BidiModel` contract and audio configuration; inject a fresh instance per contact. Keep contact persistence and business-result mappings unchanged.
 
 ## Sources

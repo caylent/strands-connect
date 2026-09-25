@@ -654,17 +654,24 @@ class ConnectSession:
                 with contextlib.suppress(Exception):
                     await asyncio.wait_for(self.agent.stop(), 5)
             if self.store:
+                cleanup_deadline = asyncio.get_running_loop().time() + self.contact_policy.flush_timeout
                 try:
-                    if not self.finished_sent or self.failed:
-                        await self.store.update(
-                            {"AgentPersistenceState": "incomplete" if self.failed else "disconnected"}
-                        )
+                    async with asyncio.timeout_at(cleanup_deadline):
+                        if not self.finished_sent or self.failed:
+                            await self.store.update(
+                                {"AgentPersistenceState": "incomplete" if self.failed else "disconnected"}
+                            )
                 except Exception:
                     self.failed = True
                     event("final_persistence_error", context=self.context)
                 finally:
-                    with contextlib.suppress(Exception):
-                        await self.store.close()
+                    try:
+                        await self.store.close(
+                            timeout=max(0, cleanup_deadline - asyncio.get_running_loop().time())
+                        )
+                    except Exception:
+                        self.failed = True
+                        event("contact_store_close_error", context=self.context)
             if self.contact and self.archive:
                 try:
                     await asyncio.wait_for(

@@ -2,7 +2,7 @@
 
 A reusable Amazon Connect native-voice extension for **Strands + Amazon Bedrock AgentCore**. Bring your own voice model, system prompt, and business tools. The adapter handles Connect A2A audio, contact-scoped tools, automatic contact attribute persistence, tool sounds, transcripts, and handback.
 
-Early implementation, **v0.2.0**. Independent community extension; not an AWS, Strands, OpenAI, or Google product. The realtime Strands API is experimental, so tested versions are pinned. See [verification and limitations](docs/verification.md).
+Early implementation, **v0.2.1**. Independent community extension; not an AWS, Strands, OpenAI, or Google product. The realtime Strands API is experimental, so tested versions are pinned. See [verification and limitations](docs/verification.md).
 
 ```mermaid
 flowchart LR
@@ -96,6 +96,8 @@ This follows Strands' [extension template](https://github.com/strands-agents/ext
 ## Contact records / CTR
 
 [Contact persistence](docs/contact-records.md) distinguishes custom attributes, contact details, transcript/tool traces, and audio recordings. A CTR is a generated contact record, not an arbitrary document to patch. The adapter uses supported Connect APIs and A2A events; it does not rewrite CTR exports.
+
+See [session duration and cleanup](docs/session-lifecycle.md) for the five-minute default, timeout behavior, and how to coordinate conversation, bridge, runtime, and persistence limits.
 
 ## Providers and development
 

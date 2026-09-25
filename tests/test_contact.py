@@ -15,6 +15,13 @@ def policy(**kwargs):
     return ContactPolicy(allowed_attributes={"OrderId", "OrderStatus"}, **kwargs)
 
 
+@pytest.mark.parametrize("field", ["write_timeout", "flush_timeout"])
+@pytest.mark.parametrize("value", [0, -1, float("inf"), float("nan")])
+def test_policy_requires_finite_positive_deadlines(field, value):
+    with pytest.raises(ValueError, match="positive"):
+        policy(**{field: value})
+
+
 async def test_resolve_validates_contact_and_uses_initial_leg():
     client = ContactClient()
     client.details[CONTACT] = {"InitialContactId": "initial-leg"}
@@ -114,3 +121,71 @@ async def test_full_queue_shutdown_releases_waiters_and_worker():
         assert store.worker.done()
     finally:
         release.set()
+
+
+@pytest.mark.parametrize("details", [False, True])
+@pytest.mark.parametrize("phase", ["write", "readback"])
+async def test_write_deadline_covers_aws_call_and_readback_but_does_not_rollback(details, phase):
+    started, release = threading.Event(), threading.Event()
+    client = ContactClient()
+    method = (
+        ("update_contact" if details else "update_contact_attributes")
+        if phase == "write"
+        else ("describe_contact" if details else "get_contact_attributes")
+    )
+    original = getattr(client, method)
+
+    def blocked(**kwargs):
+        started.set()
+        release.wait(2)
+        return original(**kwargs)
+
+    setattr(client, method, blocked)
+    store = ContactStore(client, context(), policy(allow_contact_details=True, write_timeout=0.05))
+    write = asyncio.create_task(
+        store.update_details(name="Order question") if details else store.update({"OrderId": "1042"})
+    )
+    try:
+        assert await asyncio.to_thread(started.wait, 1)
+        with pytest.raises(PersistenceError, match="timed out.*may still complete"):
+            await asyncio.wait_for(write, 0.5)
+        assert "write_timeout" in store.errors
+        release.set()
+        await asyncio.wait_for(store.queue.join(), 1)
+        actual = client.details["current"]["Name"] if details else (await store.read())["OrderId"]
+        assert actual == ("Order question" if details else "1042")
+        # Late readback does not retroactively turn an unverified result into success.
+        with pytest.raises(PersistenceError):
+            await store.flush()
+    finally:
+        release.set()
+        await store.close()
+
+
+async def test_queued_write_deadline_keeps_accepted_writes_in_order():
+    started, release = threading.Event(), threading.Event()
+    client = ContactClient()
+    original = client.update_contact_attributes
+
+    def blocked(**kwargs):
+        started.set()
+        release.wait(2)
+        return original(**kwargs)
+
+    client.update_contact_attributes = blocked
+    store = ContactStore(client, context(), policy(write_timeout=0.05))
+    first = asyncio.create_task(store.update({"OrderId": "1"}))
+    try:
+        assert await asyncio.to_thread(started.wait, 1)
+        second = asyncio.create_task(store.update({"OrderId": "2"}))
+        results = await asyncio.wait_for(asyncio.gather(first, second, return_exceptions=True), 0.5)
+        assert all(isinstance(result, PersistenceError) for result in results)
+        assert not client.writes
+        release.set()
+        await asyncio.wait_for(store.queue.join(), 1)
+        assert [write["Attributes"]["OrderId"] for write in client.writes] == ["1", "2"]
+        with pytest.raises(PersistenceError):
+            await store.flush()
+    finally:
+        release.set()
+        await store.close()
