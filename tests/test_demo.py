@@ -1,15 +1,23 @@
 """Demo settings and actual BidiAgent execution during a slow business tool."""
 
 import asyncio
-import base64
 import time
 from types import SimpleNamespace
 
 import pytest
 
 from examples.shared import application, retail
-from tests.fakes import CONTACT, INSTANCE, ContactClient, MemorySocket, ScriptedModel
-from tests.test_end_to_end import frame, init_frame
+from tests.fakes import (
+    CONTACT,
+    INSTANCE,
+    ContactClient,
+    MemorySocket,
+    WaitingModel,
+    audio_input,
+    audio_source,
+    frame,
+    init_frame,
+)
 
 
 @pytest.mark.parametrize("value", ["", "slow", "nan", "inf", "-1", "30.01", None, True])
@@ -43,45 +51,6 @@ def test_invalid_delay_fails_before_app_starts(monkeypatch):
     monkeypatch.setenv("DEMO_TOOL_DELAY_SECONDS", "nan")
     with pytest.raises(ValueError, match="DEMO_TOOL_DELAY_SECONDS"):
         application.create_app("sonic", "unused")
-
-
-class WaitingModel(ScriptedModel):
-    """One lookup request; keep consuming caller audio while it executes."""
-
-    def __init__(self, client, rate):
-        super().__init__(client, rate=rate)
-        self.input_during_wait = asyncio.Event()
-        self.result_received = asyncio.Event()
-        self.result_at = None
-
-    async def send(self, content):
-        if content["type"] == "bidi_audio_input" and self.calls:
-            self.inputs.append(content)
-            assert content["sample_rate"] == self.rate
-            if not self.result_received.is_set():
-                self.input_during_wait.set()
-            return
-        await super().send(content)
-        if content["type"] == "tool_result":
-            self.result_at = time.monotonic()
-            self.result_received.set()
-
-
-def audio_input():
-    return frame(
-        "AUDIO_INPUT",
-        parts=[{"raw": base64.b64encode(b"\0\0" * 160).decode(), "mediaType": "audio/lpcm"}],
-    )
-
-
-def audio_source(message):
-    return (
-        message.get("result", {})
-        .get("artifactUpdate", {})
-        .get("artifact", {})
-        .get("metadata", {})
-        .get("strands.connect/audioSource")
-    )
 
 
 @pytest.mark.parametrize("provider,rate", [("openai", 24000), ("gemini", 16000), ("sonic", 16000)])

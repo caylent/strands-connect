@@ -31,6 +31,29 @@ The pulse pauses through the estimated duration of queued model PCM plus a short
 
 ## Evidence and offline rehearsal
 
+Generate an audio player and measured tool/input/output timeline from a repository checkout:
+
+```sh
+uv sync --all-extras --group dev
+uv run python -m scripts.tool_wait_demo
+# Open build/tool-wait-demo/index.html in your browser.
+```
+
+The rehearsal defaults to 15 seconds. Use `--delay 8` for a shorter wait and
+`--output build/my-rehearsal` to choose another output directory. The audible rehearsal
+accepts 2–30 seconds so there is time to hear the cue; the provider apps still accept
+0–30 seconds. The script uses the repository's test fixtures and is intentionally a
+checkout-only developer tool, not part of the installed library API.
+
+The generated WAV preserves captured PCM samples consecutively. Arrival timestamps
+are recorded separately in `timing.json`; they must not become gaps or overwritten
+samples in the audio. The HTML embeds the WAV so it can be opened without a server.
+This rehearsal contains one uninterrupted cue span and does not model receiver jitter
+buffering, speech interruptions, or actual Connect playback. CI generates a short
+preview as a downloadable artifact on Python 3.14.
+
+Run the behavioral checks separately:
+
 ```sh
 uv sync --all-extras --group dev
 uv run pytest tests/test_demo.py tests/test_session.py -q

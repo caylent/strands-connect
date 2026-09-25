@@ -21,6 +21,13 @@ jobs:
       - run: uv run ruff format --check .
       - run: uv run pytest -q
       - run: uv build
+      - if: matrix.python == '3.14'
+        run: uv run python -m scripts.tool_wait_demo --delay 2
+      - uses: actions/upload-artifact@v4
+        if: matrix.python == '3.14'
+        with:
+          name: tool-wait-preview
+          path: build/tool-wait-demo/*
       - uses: actions/upload-artifact@v4
         with:
           name: distributions-${{ matrix.python }}

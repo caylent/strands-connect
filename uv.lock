@@ -1769,7 +1769,7 @@ bidi = [
 
 [[package]]
 name = "strands-connect"
-version = "0.2.3"
+version = "0.2.4"
 source = { editable = "." }
 dependencies = [
     { name = "boto3" },

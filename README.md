@@ -2,7 +2,7 @@
 
 A reusable Amazon Connect native-voice extension for **Strands + Amazon Bedrock AgentCore**. Bring your own voice model, system prompt, and business tools. The adapter handles Connect A2A audio, contact-scoped tools, automatic contact attribute persistence, tool sounds, transcripts, and handback.
 
-Early implementation, **v0.2.3**. Independent community extension; not an AWS, Strands, OpenAI, or Google product. The realtime Strands API is experimental, so tested versions are pinned. See [verification and limitations](docs/verification.md).
+Early implementation, **v0.2.4**. Independent community extension; not an AWS, Strands, OpenAI, or Google product. The realtime Strands API is experimental, so tested versions are pinned. See [verification and limitations](docs/verification.md).
 
 ```mermaid
 flowchart LR

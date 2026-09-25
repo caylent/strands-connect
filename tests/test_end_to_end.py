@@ -9,41 +9,7 @@ from websockets.asyncio.client import connect
 from websockets.asyncio.server import serve
 
 from examples.shared.retail import configure_session
-from strands_connect.session import EXT, pcm_config
-from tests.fakes import CONTACT, INSTANCE, ContactClient, MemorySocket, ScriptedModel
-
-
-def frame(kind, data=None, parts=None, context="collaboration"):
-    return {
-        "jsonrpc": "2.0",
-        "id": "request",
-        "method": "SendMessage",
-        "params": {
-            "message": {
-                "messageId": "message",
-                "contextId": context,
-                "role": "ROLE_USER",
-                "parts": parts or [{"data": data}],
-                "metadata": {EXT + "/eventType": kind},
-            }
-        },
-    }
-
-
-def init_frame():
-    return frame(
-        "INIT_SESSION",
-        {
-            "initSession": {
-                "instanceArn": INSTANCE,
-                "contactArn": INSTANCE + "/contact/" + CONTACT,
-                "audioInputConfiguration": pcm_config(8000),
-                "supportedFinishTypes": ["COMPLETE", "ESCALATE"],
-                "subscribeToTracingEvents": True,
-                "history": [{"role": "ROLE_USER", "parts": [{"text": "I need order help."}]}],
-            }
-        },
-    )
+from tests.fakes import CONTACT, INSTANCE, ContactClient, MemorySocket, ScriptedModel, frame, init_frame
 
 
 @pytest.mark.parametrize("provider,rate", [("openai", 24000), ("gemini", 16000), ("sonic", 16000)])

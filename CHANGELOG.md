@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.4
+
+Ship the offline tool-wait playback demo as a reproducible checkout command with a
+downloadable CI artifact. Fix preview crackling by replaying captured PCM frames in
+sample order instead of positioning them by arrival timestamps. Preserve measured
+timing separately and add a regression for jittered frame boundaries. This changes
+the developer rehearsal, not the live adapter audio path.
+
 ## 0.2.3
 
 Make long-tool demonstrations repeatable with an eight-second asynchronous lookup delay in all three example apps, configurable from 0–30 seconds at startup and through the deployment template. Keep the reusable adapter free of artificial tool delays. Pause the soft pulse during speech and resume after estimated queued playback while work remains pending. Verify simultaneous tool execution, outgoing cue audio, incoming caller audio, and cancellation on disconnect through the real Strands agent. Add a demo walkthrough.

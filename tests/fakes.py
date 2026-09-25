@@ -1,6 +1,7 @@
 import asyncio
 import base64
 import json
+import time
 import uuid
 
 from strands.experimental.bidi.models.model import BidiModel
@@ -12,6 +13,8 @@ from strands.experimental.bidi.types.events import (
     BidiTranscriptCompleteEvent,
 )
 from strands.types._events import ToolUseStreamEvent
+
+from strands_connect.session import EXT, pcm_config
 
 INSTANCE = "arn:aws:connect:us-east-1:123456789012:instance/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
 CONTACT = "cccccccc-cccc-cccc-cccc-cccccccccccc"
@@ -145,3 +148,75 @@ class MemorySocket:
 
     async def close(self):
         self.closed = True
+
+
+def frame(kind, data=None, parts=None, context="collaboration"):
+    return {
+        "jsonrpc": "2.0",
+        "id": "request",
+        "method": "SendMessage",
+        "params": {
+            "message": {
+                "messageId": "message",
+                "contextId": context,
+                "role": "ROLE_USER",
+                "parts": parts or [{"data": data}],
+                "metadata": {EXT + "/eventType": kind},
+            }
+        },
+    }
+
+
+def init_frame():
+    return frame(
+        "INIT_SESSION",
+        {
+            "initSession": {
+                "instanceArn": INSTANCE,
+                "contactArn": INSTANCE + "/contact/" + CONTACT,
+                "audioInputConfiguration": pcm_config(8000),
+                "supportedFinishTypes": ["COMPLETE", "ESCALATE"],
+                "subscribeToTracingEvents": True,
+                "history": [{"role": "ROLE_USER", "parts": [{"text": "I need order help."}]}],
+            }
+        },
+    )
+
+
+class WaitingModel(ScriptedModel):
+    """One lookup request; keep consuming caller audio while it executes."""
+
+    def __init__(self, client, rate):
+        super().__init__(client, rate=rate)
+        self.input_during_wait = asyncio.Event()
+        self.result_received = asyncio.Event()
+        self.result_at = None
+
+    async def send(self, content):
+        if content["type"] == "bidi_audio_input" and self.calls:
+            self.inputs.append(content)
+            assert content["sample_rate"] == self.rate
+            if not self.result_received.is_set():
+                self.input_during_wait.set()
+            return
+        await super().send(content)
+        if content["type"] == "tool_result":
+            self.result_at = time.monotonic()
+            self.result_received.set()
+
+
+def audio_input():
+    return frame(
+        "AUDIO_INPUT",
+        parts=[{"raw": base64.b64encode(b"\0\0" * 160).decode(), "mediaType": "audio/lpcm"}],
+    )
+
+
+def audio_source(message):
+    return (
+        message.get("result", {})
+        .get("artifactUpdate", {})
+        .get("artifact", {})
+        .get("metadata", {})
+        .get("strands.connect/audioSource")
+    )
